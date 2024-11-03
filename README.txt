@@ -1,10 +1,10 @@
-Project Setup Guide
+**Project Setup Guide**
 Follow these steps to run the project:
 
 Clone or download this repository:
 
-bashCopygit clone <repository-url>
-cd <project-directory>
+```bashCopygit clone <repository-url>
+cd <project-directory>```
 
 Create and activate a virtual environment:
 
