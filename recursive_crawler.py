@@ -4,8 +4,10 @@ import json
 import time
 
 
-def fetch_content_recursive(url, visited, max_depth, current_depth=1):
+def fetch_content_recursive(url, visited, max_depth, current_depth=1, counter=None):
     # Stop recursion if depth exceeds max_depth or URL has been visited
+    if counter is None:
+        counter = [1]
     if url in visited or current_depth > max_depth:
         return []
 
@@ -25,8 +27,9 @@ def fetch_content_recursive(url, visited, max_depth, current_depth=1):
         # Print progress information
         print(f"{'  ' * (current_depth - 1)}- Processing article at depth {current_depth}: '{title}' (URL: {url})")
 
-        # Add this article to the results
-        articles = [{"title": title, "content": content}]
+        # Add this article to the results with an auto-incrementing ID
+        articles = [{"id": counter[0], "title": title, "content": content}]
+        counter[0] += 1  # Increment the counter
 
         # Find new links, ignoring those with ":" in the href
         new_links = [
@@ -40,7 +43,7 @@ def fetch_content_recursive(url, visited, max_depth, current_depth=1):
 
             # Only visit new URLs, and skip pages like "Main_Page" to avoid recursion loops
             if full_url not in visited and "Main_Page" not in full_url:
-                articles.extend(fetch_content_recursive(full_url, visited, max_depth, current_depth + 1))
+                articles.extend(fetch_content_recursive(full_url, visited, max_depth, current_depth + 1, counter))
 
         return articles
 
@@ -73,7 +76,7 @@ if __name__ == "__main__":
     url_file = "urls.txt"
 
     # Set desired maximum depth level here
-    max_depth = 3
+    max_depth = 2
 
     articles_data = collect_articles(url_file, max_depth=max_depth)
     save_to_json(articles_data)
