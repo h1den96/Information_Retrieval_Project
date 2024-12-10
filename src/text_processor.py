@@ -22,7 +22,7 @@ articles_tokens = []
 for article in articles_data:
     if 'content' in article:
 
-        content_cleaned = re.sub(r'[^A-Za-zΑ\s]', '', article['content']) 
+        content_cleaned = re.sub(r'[^A-Za-z\s]', '', article['content']) 
         article_tokens = word_tokenize(content_cleaned)
         filtered_tokens = [word for word in article_tokens if word.lower() not in stop_words]
         stemmed_tokens = [stemmer.stem(word) for word in filtered_tokens]
