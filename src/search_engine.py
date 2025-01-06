@@ -8,59 +8,68 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from inverted_index import searchIndex
 
+# Download NLTK data
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
+# Initialize tools
 stop_words = set(stopwords.words('english'))
 stemmer = PorterStemmer()
 lemmatizer = WordNetLemmatizer()
 
-<<<<<<< HEAD
-def tokenize_query(text):
-    cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)  
-    tokens = word_tokenize(cleaned_text.lower())
+def display_results(ranked_indices, scores, articles, title_mapping):
+    print("\nRanked Search Results:")
+    for idx in ranked_indices[:10]:  # Top 10 αποτελέσματα
+        article = articles[idx]
+        article_title = title_mapping.get(article['id'], 'No Title')
+        print(f"\nArticle ID: {article['id']}")
+        print(f"Title: {article_title}")
+        print(f"Score: {scores[idx]:.4f}")
+        print(f"Tokens: {article['tokens'][:20]}...")
 
-=======
 def process_query(text):
-    cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)
-    tokens = word_tokenize(cleaned_text)
->>>>>>> f01483d6257f7a19d9e34a10c8e45a2d8e214472
-    filtered_tokens = [word for word in tokens if word.lower() not in stop_words]
-    stemmed_tokens = [stemmer.stem(word) for word in filtered_tokens]
-    lemmatized_tokens = [lemmatizer.lemmatize(word) for word in stemmed_tokens]
+    """Cleans and processes the query text."""
+    cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)  # Remove non-alphabetic characters
+    tokens = word_tokenize(cleaned_text.lower())  # Tokenize and convert to lowercase
+    filtered_tokens = [word for word in tokens if word not in stop_words]  # Remove stopwords
+    stemmed_tokens = [stemmer.stem(word) for word in filtered_tokens]  # Apply stemming
+    lemmatized_tokens = [lemmatizer.lemmatize(word) for word in stemmed_tokens]  # Apply lemmatization
     return lemmatized_tokens
 
 def rank_tfidf(query, articles):
+    """Ranks articles using TF-IDF scores based on the query."""
     vectorizer = TfidfVectorizer()
-    corpus = [" ".join(article['tokens']) for article in articles]
+    corpus = [" ".join(article['tokens']) for article in articles]  # Combine tokens into strings for TF-IDF
     tfidf_matrix = vectorizer.fit_transform(corpus)
     query_vector = vectorizer.transform([" ".join(query)])
     
     scores = np.dot(tfidf_matrix, query_vector.T).toarray().flatten()
-    ranked_indices = np.argsort(-scores)
+    ranked_indices = np.argsort(-scores)  # Sort indices by descending score
     return ranked_indices, scores
 
 def boolean_search(query):
-    if " " in query:
+    """Performs a Boolean search on the inverted index."""
+    if " " in query:  # Split by spaces and perform AND operation
         terms = query.split()
         result = set(searchIndex(terms[0].strip()))
         for term in terms[1:]:
             result &= set(searchIndex(term.strip()))
         return result
-    elif "AND" in query:
+    elif "AND" in query:  # Handle explicit AND
         terms = query.split("AND")
         return set(searchIndex(terms[0].strip())) & set(searchIndex(terms[1].strip()))
-    elif "OR" in query:
+    elif "OR" in query:  # Handle OR
         terms = query.split("OR")
         return set(searchIndex(terms[0].strip())) | set(searchIndex(terms[1].strip()))
-    elif "NOT" in query:
+    elif "NOT" in query:  # Handle NOT
         terms = query.split("NOT")
         return set(searchIndex(terms[0].strip())) - set(searchIndex(terms[1].strip()))
-    else:
+    else:  # Single-term query
         return set(searchIndex(query.strip()))
 
-def main_loop(articles):
+def main_loop(articles, title_mapping):
+    """Main interactive loop for search."""
     while True:
         print("\nMenu:")
         print("1. Make a search")
@@ -72,10 +81,16 @@ def main_loop(articles):
             processed_query = process_query(query)
             print(f"Processed Query: {processed_query}")
 
+            # Select retrieval algorithm
+            print("\nChoose retrieval algorithm:")
+            print("1. Boolean Search")
+            print("2. TF-IDF Ranking")
+            algo_choice = input("Enter your choice: ").strip()
+
             if algo_choice == '1':  # Boolean Search
-                if any(op in query for op in ["AND", "OR", "NOT", " "]):
+                if any(op in query for op in ["AND", "OR", "NOT", " "]):  # Check for Boolean operators
                     matching_articles = boolean_search(query)
-                else:
+                else:  # Default to AND operation for processed tokens
                     matching_articles = set()
                     for token in processed_query:
                         matching_articles.update(searchIndex(token))
@@ -104,9 +119,8 @@ def main_loop(articles):
         else:
             print("Invalid choice. Please try again.")
 
-<<<<<<< HEAD
-=======
 def load_articles(json_file):
+    """Loads articles from a JSON file."""
     try:
         with open(json_file, 'r', encoding='utf-8') as file:
             return json.load(file)
@@ -116,9 +130,9 @@ def load_articles(json_file):
     except json.JSONDecodeError:
         print(f"Error: File '{json_file}' is not a valid JSON.")
         return []
->>>>>>> f01483d6257f7a19d9e34a10c8e45a2d8e214472
 
 def load_titles(json_file):
+    """Loads article titles from a JSON file."""
     try:
         with open(json_file, 'r', encoding='utf-8') as file:
             articles = json.load(file)
