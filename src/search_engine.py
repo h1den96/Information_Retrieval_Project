@@ -16,14 +16,27 @@ stop_words = set(stopwords.words('english'))
 stemmer = PorterStemmer()
 lemmatizer = WordNetLemmatizer()
 
-def process_query(text):
+def tokenize_query(text):
     cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)  
-    tokens = word_tokenize(cleaned_text)
+    tokens = word_tokenize(cleaned_text.lower())
+
     filtered_tokens = [word for word in tokens if word.lower() not in stop_words]
     stemmed_tokens = [stemmer.stem(word) for word in filtered_tokens]
     lemmatized_tokens = [lemmatizer.lemmatize(word) for word in stemmed_tokens]
-    return lemmatized_tokens
+    return tokens
 
+
+def load_articles(json_file):
+    try:
+        with open(json_file, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        print(f"Error: File '{json_file}' not found.")
+        return []
+    except json.JSONDecodeError:
+        print(f"Error: File '{json_file}' is not a valid JSON.")
+        return []
+    
 
 def main_loop(articles):
     while True:
@@ -34,7 +47,7 @@ def main_loop(articles):
         
         if choice == '1':
             query = input("Enter your query: ").strip()
-            processed_query = process_query(query)
+            processed_query = processed_query(query)
             print(f"Processed Query: {processed_query}")
 
             matching_articles = set()
@@ -56,16 +69,6 @@ def main_loop(articles):
         else:
             print("Invalid choice. Please try again.")
 
-def load_articles(json_file):
-    try:
-        with open(json_file, 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        print(f"Error: File '{json_file}' not found.")
-        return []
-    except json.JSONDecodeError:
-        print(f"Error: File '{json_file}' is not a valid JSON.")
-        return []
 
 if __name__ == "__main__":
     articles_file = './processed_articles.json'
