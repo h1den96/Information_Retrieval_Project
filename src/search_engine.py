@@ -8,12 +8,10 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from inverted_index import searchIndex
 
-# Download NLTK data
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
-# Initialize tools
 stop_words = set(stopwords.words('english'))
 stemmer = PorterStemmer()
 lemmatizer = WordNetLemmatizer()
@@ -29,47 +27,67 @@ def display_results(ranked_indices, scores, articles, title_mapping):
         print(f"Tokens: {article['tokens'][:20]}...")
 
 def process_query(text):
-    """Cleans and processes the query text."""
-    cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)  # Remove non-alphabetic characters
-    tokens = word_tokenize(cleaned_text.lower())  # Tokenize and convert to lowercase
-    filtered_tokens = [word for word in tokens if word not in stop_words]  # Remove stopwords
-    stemmed_tokens = [stemmer.stem(word) for word in filtered_tokens]  # Apply stemming
-    lemmatized_tokens = [lemmatizer.lemmatize(word) for word in stemmed_tokens]  # Apply lemmatization
+    cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)
+    tokens = word_tokenize(cleaned_text.lower())
+    filtered_tokens = [word for word in tokens if word not in stop_words] 
+    stemmed_tokens = [stemmer.stem(word) for word in filtered_tokens]
+    lemmatized_tokens = [lemmatizer.lemmatize(word) for word in stemmed_tokens]
     return lemmatized_tokens
 
 def rank_tfidf(query, articles):
-    """Ranks articles using TF-IDF scores based on the query."""
     vectorizer = TfidfVectorizer()
-    corpus = [" ".join(article['tokens']) for article in articles]  # Combine tokens into strings for TF-IDF
+    corpus = [" ".join(article['tokens']) for article in articles]
     tfidf_matrix = vectorizer.fit_transform(corpus)
     query_vector = vectorizer.transform([" ".join(query)])
     
     scores = np.dot(tfidf_matrix, query_vector.T).toarray().flatten()
-    ranked_indices = np.argsort(-scores)  # Sort indices by descending score
+    ranked_indices = np.argsort(-scores)  # Φθίνουσα ταξινόμηση
     return ranked_indices, scores
 
 def boolean_search(query):
     """Performs a Boolean search on the inverted index."""
-    if " " in query:  # Split by spaces and perform AND operation
-        terms = query.split()
-        result = set(searchIndex(terms[0].strip()))
+    query = query.strip()
+
+    if "AND" in query:
+        terms = [term.strip() for term in query.split("AND") if term.strip()]
+        if len(terms) < 2:
+            raise ValueError("Invalid query: AND operator must have two terms.")
+        result = set(searchIndex(terms[0]))
         for term in terms[1:]:
-            result &= set(searchIndex(term.strip()))
+            result &= set(searchIndex(term))
         return result
-    elif "AND" in query:  # Handle explicit AND
-        terms = query.split("AND")
-        return set(searchIndex(terms[0].strip())) & set(searchIndex(terms[1].strip()))
-    elif "OR" in query:  # Handle OR
-        terms = query.split("OR")
-        return set(searchIndex(terms[0].strip())) | set(searchIndex(terms[1].strip()))
-    elif "NOT" in query:  # Handle NOT
-        terms = query.split("NOT")
-        return set(searchIndex(terms[0].strip())) - set(searchIndex(terms[1].strip()))
-    else:  # Single-term query
-        return set(searchIndex(query.strip()))
+
+    elif "OR" in query:
+        terms = [term.strip() for term in query.split("OR") if term.strip()]
+        if len(terms) < 2:
+            raise ValueError("Invalid query: OR operator must have two terms.")
+        result = set()
+        for term in terms:
+            result |= set(searchIndex(term))
+        return result
+
+    elif "NOT" in query:
+        terms = [term.strip() for term in query.split("NOT") if term.strip()]
+        if len(terms) != 2:
+            raise ValueError("Invalid query: NOT operator must have exactly two terms.")
+        return set(searchIndex(terms[0])) - set(searchIndex(terms[1]))
+
+    elif " " in query:  # Λογική AND μεταξύ όλων των όρων με κενό
+        terms = [term.strip() for term in query.split() if term.strip()]
+        if not terms:
+            raise ValueError("Invalid query: No terms found.")
+        result = set(searchIndex(terms[0]))
+        for term in terms[1:]:
+            result &= set(searchIndex(term))
+        return result
+
+    else:  # Μονολεκτική αναζήτηση
+        if not query:
+            raise ValueError("Invalid query: Empty query.")
+        return set(searchIndex(query))
+
 
 def main_loop(articles, title_mapping):
-    """Main interactive loop for search."""
     while True:
         print("\nMenu:")
         print("1. Make a search")
@@ -81,16 +99,15 @@ def main_loop(articles, title_mapping):
             processed_query = process_query(query)
             print(f"Processed Query: {processed_query}")
 
-            # Select retrieval algorithm
             print("\nChoose retrieval algorithm:")
             print("1. Boolean Search")
             print("2. TF-IDF Ranking")
             algo_choice = input("Enter your choice: ").strip()
 
             if algo_choice == '1':  # Boolean Search
-                if any(op in query for op in ["AND", "OR", "NOT", " "]):  # Check for Boolean operators
+                if any(op in query for op in ["AND", "OR", "NOT", " "]):
                     matching_articles = boolean_search(query)
-                else:  # Default to AND operation for processed tokens
+                else:
                     matching_articles = set()
                     for token in processed_query:
                         matching_articles.update(searchIndex(token))
@@ -120,7 +137,6 @@ def main_loop(articles, title_mapping):
             print("Invalid choice. Please try again.")
 
 def load_articles(json_file):
-    """Loads articles from a JSON file."""
     try:
         with open(json_file, 'r', encoding='utf-8') as file:
             return json.load(file)
@@ -132,7 +148,6 @@ def load_articles(json_file):
         return []
 
 def load_titles(json_file):
-    """Loads article titles from a JSON file."""
     try:
         with open(json_file, 'r', encoding='utf-8') as file:
             articles = json.load(file)
