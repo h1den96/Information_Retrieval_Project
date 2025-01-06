@@ -16,11 +16,19 @@ stop_words = set(stopwords.words('english'))
 stemmer = PorterStemmer()
 lemmatizer = WordNetLemmatizer()
 
+<<<<<<< HEAD
+def tokenize_query(text):
+    cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)  
+    tokens = word_tokenize(cleaned_text.lower())
+
+=======
 def process_query(text):
     cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)
     tokens = word_tokenize(cleaned_text)
+>>>>>>> f01483d6257f7a19d9e34a10c8e45a2d8e214472
     filtered_tokens = [word for word in tokens if word.lower() not in stop_words]
-    lemmatized_tokens = [lemmatizer.lemmatize(word) for word in filtered_tokens]
+    stemmed_tokens = [stemmer.stem(word) for word in filtered_tokens]
+    lemmatized_tokens = [lemmatizer.lemmatize(word) for word in stemmed_tokens]
     return lemmatized_tokens
 
 def rank_tfidf(query, articles):
@@ -52,17 +60,7 @@ def boolean_search(query):
     else:
         return set(searchIndex(query.strip()))
 
-def display_results(ranked_indices, scores, articles, title_mapping):
-    print("\nRanked Search Results:")
-    for idx in ranked_indices[:10]:  # Top 10 αποτελέσματα
-        article = articles[idx]
-        article_title = title_mapping.get(article['id'], 'No Title')
-        print(f"\nArticle ID: {article['id']}")
-        print(f"Title: {article_title}")
-        print(f"Score: {scores[idx]:.4f}")
-        print(f"Tokens: {article['tokens'][:20]}...")
-
-def main_loop(articles, title_mapping):
+def main_loop(articles):
     while True:
         print("\nMenu:")
         print("1. Make a search")
@@ -70,13 +68,9 @@ def main_loop(articles, title_mapping):
         choice = input("Enter your choice: ").strip()
 
         if choice == '1':
-            print("\nSelect:")
-            print("1. Boolean Search")
-            print("2. TF-IDF Ranking")
-            algo_choice = input("Enter your choice (1-2): ").strip()
-
             query = input("Enter your query (use AND, OR, NOT for Boolean operations): ").strip()
             processed_query = process_query(query)
+            print(f"Processed Query: {processed_query}")
 
             if algo_choice == '1':  # Boolean Search
                 if any(op in query for op in ["AND", "OR", "NOT", " "]):
@@ -110,6 +104,8 @@ def main_loop(articles, title_mapping):
         else:
             print("Invalid choice. Please try again.")
 
+<<<<<<< HEAD
+=======
 def load_articles(json_file):
     try:
         with open(json_file, 'r', encoding='utf-8') as file:
@@ -120,6 +116,7 @@ def load_articles(json_file):
     except json.JSONDecodeError:
         print(f"Error: File '{json_file}' is not a valid JSON.")
         return []
+>>>>>>> f01483d6257f7a19d9e34a10c8e45a2d8e214472
 
 def load_titles(json_file):
     try:

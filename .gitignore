@@ -11,6 +11,3 @@ src/__pycache__
 
 # Custom directory
 askiseis/
-
-# Test files
-src/test_index.py
