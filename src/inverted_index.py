@@ -23,4 +23,3 @@ def searchIndex(term=""):
         return inverted_index
     else:
         return inverted_index.get(term, [])
-        
