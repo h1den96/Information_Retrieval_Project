@@ -118,8 +118,8 @@ def main_loop(articles, title_mapping):
                         if article['id'] in matching_articles:
                             article_title = title_mapping.get(article['id'], 'No Title')
                             print(f"\nArticle ID: {article['id']}")
-                            print(f"Title: {article_title}")
-                            print(f"Tokens: {article['tokens'][:20]}...")
+                            #print(f"Title: {article_title}")
+                            #print(f"Tokens: {article['tokens'][:20]}...")
                 else:
                     print("No matching articles found.")
 
