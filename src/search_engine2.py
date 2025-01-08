@@ -15,16 +15,15 @@ nltk.download('wordnet')
 stop_words = set(stopwords.words('english'))
 stemmer = PorterStemmer()
 lemmatizer = WordNetLemmatizer()
-logical_operators = {"and", "or", "not"}
+logical_operators = {"AND", "OR", "NOT"}
 
 def process_query(text):
-    cleaned_text = re.sub(r'[^A-Za-z\s]', '', text) # remove punctuation
+    cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)
     tokens = word_tokenize(cleaned_text)
-    
     
     filtered_stop_words = stop_words - logical_operators
     
-    filtered_tokens = [word for word in tokens if word.lower() not in filtered_stop_words]
+    filtered_tokens = [word for word in tokens if word.upper() not in filtered_stop_words]
     stemmed_tokens = [stemmer.stem(word) for word in filtered_tokens]
     lemmatized_tokens = [lemmatizer.lemmatize(word) for word in stemmed_tokens]
     return lemmatized_tokens
@@ -43,19 +42,32 @@ def load_articles(json_file):
     
 
 def query_padding(query):
-
-    previous_term = False;
     padded_query = []
-
+    last_term = False 
+    
     for token in query:
-        if token.upper() in logical_operators:
-            padded_query.append(token.upper())
-            previous_term = False;
+        token_upper = token.upper()
+
+        if token_upper in logical_operators:
+            if token_upper in {"AND", "OR"} and (not padded_query or not last_term):
+                print(f"Error: Invalid query structure near '{token}'.")
+                return []
+
+            if token_upper == "NOT":
+                padded_query.append(token_upper)
+                last_term = False
+            elif token_upper in {"AND", "OR"}:
+                padded_query.append(token_upper)
+                last_term = False
         else:
-            if previous_term:
-                padded_query.append("and")
-            padded_query.append(token)
-            previous_term = True
+            if last_term:
+                padded_query.append("AND")
+            padded_query.append(token_upper)
+            last_term = True 
+
+    if not last_term:
+        print("Error: Query cannot end with a logical operator.")
+        return []
 
     return padded_query
 
