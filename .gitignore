@@ -11,3 +11,6 @@ src/__pycache__
 
 # Custom directory
 askiseis/
+
+# sklearn virtual env
+sklearn-env/

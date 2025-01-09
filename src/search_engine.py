@@ -7,29 +7,8 @@ import re
 import json
 import numpy as np
 from collections import defaultdict
+from inverted_index import *
 
-# Inverted Index
-_inverted_index = None
-
-def buildInvertedIndex():
-    global _inverted_index
-    if _inverted_index is None:
-        inverted_index = defaultdict(list)
-        with open('./processed_articles.json', 'r') as file:
-            processed_articles = json.load(file)
-
-        for article in processed_articles:
-            for token in set(article["tokens"]):
-                inverted_index[token].append(article["id"])
-        
-        _inverted_index = inverted_index
-    return _inverted_index
-
-def searchIndex(term=""):
-    inverted_index = buildInvertedIndex()
-    return set(inverted_index.get(term, []))
-
-# Text Preprocessing
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
