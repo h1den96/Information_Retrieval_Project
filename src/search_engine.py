@@ -7,8 +7,8 @@ import re
 import json
 import numpy as np
 from collections import defaultdict
-from inverted_index import *
 
+# Text Preprocessing
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
@@ -16,6 +16,29 @@ nltk.download('wordnet')
 stop_words = set(stopwords.words('english'))
 stemmer = PorterStemmer()
 lemmatizer = WordNetLemmatizer()
+
+
+# Inverted Index
+_inverted_index = None
+
+def buildInvertedIndex():
+    global _inverted_index
+    if _inverted_index is None:
+        inverted_index = defaultdict(list)
+        with open('./processed_articles.json', 'r') as file:
+            processed_articles = json.load(file)
+
+        for article in processed_articles:
+            for token in set(article["tokens"]):
+                inverted_index[token].append(article["id"])
+        
+        _inverted_index = inverted_index
+    return _inverted_index
+
+def searchIndex(term=""):
+    inverted_index = buildInvertedIndex()
+    return set(inverted_index.get(term, []))
+
 
 def process_query(text):
     cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)
@@ -75,6 +98,56 @@ def rank_tfidf(query, articles):
     ranked_indices = np.argsort(-scores)  # Descending order
     return ranked_indices, scores
 
+######
+
+# Calculate IDF for BM25
+def calc_idf(articles):
+    N = len(articles) 
+    term_doc_count = defaultdict(int)
+
+    for article in articles:
+        unique_tokens = set(article['tokens'])
+        for token in unique_tokens:
+            term_doc_count[token] += 1
+
+    idf = {}
+    for term, doc_count in term_doc_count.items():
+        idf[term] = np.log((N - doc_count + 0.5) / (doc_count + 0.5) + 1)
+
+    return idf
+
+# BM25 Ranking
+def BM25(query, articles, idf):
+
+    k1 = 1.5
+    b = 0.75
+
+    avg_doc_len = sum(len(article['tokens']) for article in articles) / len(articles)
+    scores = []
+
+    for article in articles:
+        doc_len = len(article['tokens'])
+        score = 0
+        token_freq = defaultdict(int)
+
+        for token in article['tokens']:
+            token_freq[token] += 1
+
+        for term in query:
+            if term in idf:
+                tf = token_freq[term]
+                idf_term = idf[term]
+                numerator = tf * (k1 + 1)
+                denominator = tf + k1 * (1 - b + b * (doc_len / avg_doc_len))
+                score += idf_term * (numerator / denominator)
+
+        scores.append(score)
+
+    ranked_indices = np.argsort(-np.array(scores))
+    return ranked_indices, scores
+
+######
+
 # Display Results
 def display_results(ranked_indices, scores, articles, title_mapping):
     print("\nRanked Search Results:")
@@ -126,6 +199,7 @@ def main_loop(articles, title_mapping):
             print("\nChoose retrieval algorithm:")
             print("1. Boolean Search")
             print("2. TF-IDF Ranking")
+            print("3. Okapi BM35 Ranking")
             algo_choice = input("Enter your choice: ").strip()
 
             if algo_choice == '1':  # Boolean Search
@@ -144,6 +218,11 @@ def main_loop(articles, title_mapping):
 
             elif algo_choice == '2':  # TF-IDF Ranking
                 ranked_indices, scores = rank_tfidf(processed_query, articles)
+                display_results(ranked_indices, scores, articles, title_mapping)
+
+            elif algo_choice == '3':
+                idf = calc_idf(articles)  # Precompute IDF
+                ranked_indices, scores = BM25(processed_query, articles, idf)
                 display_results(ranked_indices, scores, articles, title_mapping)
 
             else:

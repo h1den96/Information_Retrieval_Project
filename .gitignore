@@ -14,3 +14,9 @@ askiseis/
 
 # sklearn virtual env
 sklearn-env/
+
+# Alternative incomplete version of search_engine.py
+search_engine2.py
+
+# inverted index functions
+inverterd_index.py
