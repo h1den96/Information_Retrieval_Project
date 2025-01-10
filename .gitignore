@@ -15,8 +15,14 @@ askiseis/
 # sklearn virtual env
 sklearn-env/
 
-# Alternative incomplete version of search_engine.py
+# Alternative incomplete versions of search_engine.py
 search_engine2.py
+search_engine_original.py
 
 # inverted index functions
 inverterd_index.py
+
+# CISI files
+CISI.ALL
+CISI.QRY
+CISI.REL

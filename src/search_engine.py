@@ -5,6 +5,7 @@ from nltk.stem import PorterStemmer, WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 import re
 import json
+import sys
 import numpy as np
 from collections import defaultdict
 
@@ -39,7 +40,7 @@ def searchIndex(term=""):
     inverted_index = buildInvertedIndex()
     return set(inverted_index.get(term, []))
 
-
+# Query processing (tokenization, lemmatization, stop-word removal)
 def process_query(text):
     cleaned_text = re.sub(r'[^A-Za-z\s]', '', text)
     tokens = word_tokenize(cleaned_text.lower())
@@ -98,7 +99,6 @@ def rank_tfidf(query, articles):
     ranked_indices = np.argsort(-scores)  # Descending order
     return ranked_indices, scores
 
-######
 
 # Calculate IDF for BM25
 def calc_idf(articles):
@@ -146,30 +146,17 @@ def BM25(query, articles, idf):
     ranked_indices = np.argsort(-np.array(scores))
     return ranked_indices, scores
 
-######
-
-# Display Results
-def display_results(ranked_indices, scores, articles, title_mapping):
-    print("\nRanked Search Results:")
-    for idx in ranked_indices[:10]:  # Top 10 results
-        article = articles[idx]
-        article_title = title_mapping.get(article['id'], 'No Title')
-        print(f"\nArticle ID: {article['id']}")
-        print(f"Title: {article_title}")
-        print(f"Score: {scores[idx]:.4f}")
-        print(f"Tokens: {article['tokens'][:20]}...")
-
 # Load Data
-def load_articles(json_file):
-    try:
-        with open(json_file, 'r', encoding='utf-8') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        print(f"Error: File '{json_file}' not found.")
-        return []
-    except json.JSONDecodeError:
-        print(f"Error: File '{json_file}' is not a valid JSON.")
-        return []
+#def load_articles(json_file):
+#    try:
+#        with open(json_file, 'r', encoding='utf-8') as file:
+#            return json.load(file)
+#    except FileNotFoundError:
+#        print(f"Error: File '{json_file}' not found.")
+#        return []
+#    except json.JSONDecodeError:
+#        print(f"Error: File '{json_file}' is not a valid JSON.")
+#        return []
 
 def load_titles(json_file):
     try:
@@ -183,67 +170,70 @@ def load_titles(json_file):
         print(f"Error: File '{json_file}' is not a valid JSON.")
         return {}
 
-# Main Program Loop
-def main_loop(articles, title_mapping):
-    while True:
-        print("\nMenu:")
-        print("1. Make a search")
-        print("2. Exit")
-        choice = input("Enter your choice: ").strip()
 
-        if choice == '1':
-            query = input("Enter your query (use AND, OR, NOT for Boolean operations): ").strip()
-            processed_query = process_query(query)
-            print(f"Processed Query: {processed_query}")
+def ranking(articles, processed_query, method):
 
-            print("\nChoose retrieval algorithm:")
-            print("1. Boolean Search")
-            print("2. TF-IDF Ranking")
-            print("3. Okapi BM35 Ranking")
-            algo_choice = input("Enter your choice: ").strip()
-
-            if algo_choice == '1':  # Boolean Search
-                matching_articles = boolean_search(query)
-
-                print("\nSearch Results:")
-                if matching_articles:
-                    for article in articles:
-                        if article['id'] in matching_articles:
-                            article_title = title_mapping.get(article['id'], 'No Title')
-                            print(f"\nArticle ID: {article['id']}")
-                            #print(f"Title: {article_title}")
-                            #print(f"Tokens: {article['tokens'][:20]}...")
-                else:
-                    print("No matching articles found.")
-
-            elif algo_choice == '2':  # TF-IDF Ranking
-                ranked_indices, scores = rank_tfidf(processed_query, articles)
-                display_results(ranked_indices, scores, articles, title_mapping)
-
-            elif algo_choice == '3':
-                idf = calc_idf(articles)  # Precompute IDF
-                ranked_indices, scores = BM25(processed_query, articles, idf)
-                display_results(ranked_indices, scores, articles, title_mapping)
-
-            else:
-                print("Invalid retrieval algorithm choice.")
-
-        elif choice == '2':
-            print("Exiting program.")
-            break
+    if method == '1':  # Boolean Search
+        matching_articles = boolean_search(processed_query)
+        scores = 0
+        if matching_articles:
+            return matching_articles, scores
         else:
-            print("Invalid choice. Please try again.")
-
-if __name__ == "__main__":
-    processed_articles_file = './processed_articles.json'
-    articles_file = './wikipedia_articles.json'
-
-    articles_data = load_articles(processed_articles_file)
-    title_mapping = load_titles(articles_file)
-
-    if not articles_data:
-        print("No articles available for search. Exiting.")
-    elif not title_mapping:
-        print("No titles found for articles. Exiting.")
+            print("No matching articles found.")
+    elif method == '2':  # TF-IDF Ranking
+        ranked_indices, scores = rank_tfidf(processed_query, articles)
+        return ranked_indices, scores
+    elif method == '3':
+        idf = calc_idf(articles)  # Precompute IDF
+        ranked_indices, scores = BM25(processed_query, articles, idf)
+        return ranked_indices, scores
     else:
-        main_loop(articles_data, title_mapping)
+        print("Invalid retrieval algorithm choice.")
+        return None
+
+# Display Results
+def display_results(ranked_indices, scores, articles, title_mapping):
+    print("\nRanked Search Results:")
+    for idx in ranked_indices[:10]:  # Top 10 results
+        article = articles[idx]
+        article_title = title_mapping.get(article['id'], 'No Title')
+        print(f"\nArticle ID: {article['id']}")
+        print(f"Title: {article_title}")
+        print(f"Score: {scores[idx]:.4f}")
+        print(f"Tokens: {article['tokens'][:20]}...")
+
+# Main Program Loop
+def main_loop(articles, title_mapping, use='0', query="0", method='0'):
+
+    while True:
+        # use == 0: User mode enabled, manually enter queries
+        if use == '0':
+            if choice == '1':
+                print("\nMenu:")
+                print("1. Make a search")
+                print("2. Exit")
+                choice = input("Enter your choice: ").strip()
+
+                query = input("Enter your query (use AND, OR, NOT for Boolean operations): ").strip()
+                processed_query = process_query(query)
+                print(f"Processed Query: {processed_query}")
+
+                print("\nChoose retrieval algorithm:")
+                print("1. Boolean Search")
+                print("2. TF-IDF Ranking")
+                print("3. Okapi BM35 Ranking")
+                method = input("Enter your choice: ").strip()
+                
+                print("Search Results: \n")
+                display_results(ranking(articles, processed_query, method), articles, title_mapping)
+
+            elif choice == '2':
+                print("Exiting program.")
+                break
+            else:
+                print("Invalid choice. Please try again.")
+        
+        # use == 1: Function mode enabled, automatically enters query/ies and returs results to function
+        elif use == '1':
+            return ranking(articles, processed_query, method)
+            
