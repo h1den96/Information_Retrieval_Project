@@ -10,7 +10,7 @@ nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
-with open('./wikipedia_articles.json', 'r') as file:
+with open('./CISI_articles.json', 'r') as file:
     articles_data = json.load(file)
 
 stop_words = set(stopwords.words('english'))
@@ -40,5 +40,5 @@ for article in articles_data:
     for article, lemmatized_tokens in zip(articles_data, articles_tokens)
     ]
 
-    with open("processed_articles.json", "w") as f:
+    with open("processed_CISI_articles.json", "w") as f:
         json.dump(processed_articles, f)
