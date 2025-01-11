@@ -5,7 +5,7 @@ def ground_truth(articles, title_mapping, queries):
     data = []
 
     for query_id, query_text in queries.items():
-        rankings, scores = main_loop(articles, title_mapping, query_text, use='1', method='3')
+        rankings, scores = main_loop(articles, title_mapping, query_text, use='1', method='4')
         
         query_data = []
         for doc_id, score in zip(rankings, scores):
