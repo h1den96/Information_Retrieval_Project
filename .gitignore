@@ -21,8 +21,3 @@ search_engine_original.py
 
 # inverted index functions
 inverterd_index.py
-
-# CISI files
-CISI.ALL
-CISI.QRY
-CISI.REL

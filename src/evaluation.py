@@ -1,22 +1,20 @@
-from search_engine import *
-from CISI_to_json import *
+from search_engine import main_loop, load_articles, load_titles
 
+def eval_search_engine(queries, ground_truth, articles, title_mapping):
 
-def eval_search_engine(queries, ground_truth):
     precision_scores = []
     recall_scores = []
     f1_scores = []
 
     for query_id, query_text in queries.items():
-        print(f"Evaluating Query ID {query_id}: {query_text}")
+        print(f"\n\nEvaluating Query ID {query_id}: {query_text}")
         
-        # Retrieve results using your search engine
-        retrieved_docs = main_loop(query_text)  # Replace with your search function
+        ranked_indices, scores = main_loop(articles, title_mapping, query_text, use='1', method='3')
         
-        # Get relevant docs from ground truth
+        retrieved_docs = set(ranked_indices)
+
         relevant_docs = set(ground_truth.get(query_id, []))
         
-        # Evaluate
         true_positives = len(retrieved_docs & relevant_docs)
         false_positives = len(retrieved_docs - relevant_docs)
         false_negatives = len(relevant_docs - retrieved_docs)
@@ -30,23 +28,36 @@ def eval_search_engine(queries, ground_truth):
         f1_scores.append(f1)
         
         print(f"Precision: {precision:.2f}, Recall: {recall:.2f}, F1-Score: {f1:.2f}")
+    
+    avg_precision = sum(precision_scores) / len(precision_scores) if precision_scores else 0
+    avg_recall = sum(recall_scores) / len(recall_scores) if recall_scores else 0
+    avg_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0
 
+    print("\nOverall Performance:")
+    print(f"Average Precision: {avg_precision:.2f}")
+    print(f"Average Recall: {avg_recall:.2f}")
+    print(f"Average F1-Score: {avg_f1:.2f}")
 
 def parse_relevance(file_path):
     relevance_dict = {}
     with open(file_path, 'r') as file:
         for line in file:
             parts = line.strip().split()
-            if len(parts) == 4:
+            if len(parts) >= 3:
                 query_id = int(parts[0])
-                doc_id = int(parts[2])
+                doc_id = int(parts[1])
+                relevance = int(parts[2])
+                
                 if query_id not in relevance_dict:
                     relevance_dict[query_id] = []
-                relevance_dict[query_id].append(doc_id)
+
+                if relevance > 0:
+                    relevance_dict[query_id].append(doc_id)
     return relevance_dict
 
 
 def load_queries(file_path):
+
     queries = {}
     current_id = None
     query_text = []
@@ -54,17 +65,16 @@ def load_queries(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         for line in file:
             line = line.strip()
-            if line.startswith('.I'):  # Query ID
-                if current_id is not None:  # Save the previous query
+            if line.startswith('.I'):
+                if current_id is not None:
                     queries[current_id] = " ".join(query_text).strip()
                 current_id = int(line.split()[1])
-                query_text = []  # Reset for the next query
-            elif line.startswith('.W'):  # Begin query text
+                query_text = []
+            elif line.startswith('.W'):
                 continue
-            else:  # Collect query text
+            else:
                 query_text.append(line)
         
-        # Save the last query
         if current_id is not None:
             queries[current_id] = " ".join(query_text).strip()
 
@@ -72,25 +82,18 @@ def load_queries(file_path):
 
 
 if __name__ == "__main__":
-    #processed_articles_file = './processed_articles.json'
-    articles_file = './processed_CISI.json'
-    #articles_data = load_articles(processed_articles)
-    #title_mapping = load_titles(articles_file)
-
+    articles_file = './processed_CISI_articles.json'
+    title_articles_file = './CISI_articles.json'
     cisi_queries_path = "./CISI.QRY"
+    relevance_file = "./CISI.REL"
+    
+    articles, title_mapping = load_articles(articles_file), load_titles(title_articles_file)
+
     queries = load_queries(cisi_queries_path)
 
-    ground_truth = parse_relevance("./CISI.REL")
-
-    # Print loaded queries
-    #for query_id, query_text in queries.items():
-    #    print(f"Query ID: {query_id}")
-    #    print(f"Query Text: {query_text}")
-    #    print("-" * 40)
-
-    #if articles_data:
-    #    for query in queries:
-    #        main_loop(articles_data, title_mapping, '1', query, '3')  # use = 1, query, method = 3 = BM25
-    #    #eval_search_engine(queries, ground_truth)  # Uncomment to evaluate
-    #else:
-    #    print("Failed to load articles or titles. Exiting...")
+    ground_truth = parse_relevance(relevance_file)
+    
+    if articles and title_mapping:
+        eval_search_engine(queries, ground_truth, articles, title_mapping)
+    else:
+        print("Failed to load articles or titles. Exiting...")

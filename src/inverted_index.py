@@ -20,7 +20,7 @@ def buildInvertedIndex():
 def searchIndex(term=""):
     inverted_index = buildInvertedIndex()
     if term == "":
-        return list(inverted_index.keys())  # Return only terms (if desired).
+        return list(inverted_index.keys())
     else:
         return inverted_index.get(term, [])
         

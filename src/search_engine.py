@@ -146,17 +146,18 @@ def BM25(query, articles, idf):
     ranked_indices = np.argsort(-np.array(scores))
     return ranked_indices, scores
 
-# Load Data
-#def load_articles(json_file):
-#    try:
-#        with open(json_file, 'r', encoding='utf-8') as file:
-#            return json.load(file)
-#    except FileNotFoundError:
-#        print(f"Error: File '{json_file}' not found.")
-#        return []
-#    except json.JSONDecodeError:
-#        print(f"Error: File '{json_file}' is not a valid JSON.")
-#        return []
+
+def load_articles(json_file):
+    try:
+        with open(json_file, 'r', encoding='utf-8') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        print(f"Error: File '{json_file}' not found.")
+        return []
+    except json.JSONDecodeError:
+        print(f"Error: File '{json_file}' is not a valid JSON.")
+        return []
+
 
 def load_titles(json_file):
     try:
@@ -169,7 +170,6 @@ def load_titles(json_file):
     except json.JSONDecodeError:
         print(f"Error: File '{json_file}' is not a valid JSON.")
         return {}
-
 
 def ranking(articles, processed_query, method):
 
@@ -203,7 +203,7 @@ def display_results(ranked_indices, scores, articles, title_mapping):
         print(f"Tokens: {article['tokens'][:20]}...")
 
 # Main Program Loop
-def main_loop(articles, title_mapping, use='0', query="0", method='0'):
+def main_loop(articles, title_mapping, query="0", use='0', method='0'):
 
     while True:
         # use == 0: User mode enabled, manually enter queries
@@ -225,7 +225,8 @@ def main_loop(articles, title_mapping, use='0', query="0", method='0'):
                 method = input("Enter your choice: ").strip()
                 
                 print("Search Results: \n")
-                display_results(ranking(articles, processed_query, method), articles, title_mapping)
+                rankings, scores = ranking(articles, processed_query, method)
+                display_results(rankings, scores, processed_query, method)
 
             elif choice == '2':
                 print("Exiting program.")
@@ -235,5 +236,8 @@ def main_loop(articles, title_mapping, use='0', query="0", method='0'):
         
         # use == 1: Function mode enabled, automatically enters query/ies and returs results to function
         elif use == '1':
-            return ranking(articles, processed_query, method)
-            
+            processed_query = process_query(query)
+            #print(f"Processed query: {processed_query}")
+            rankings, scores = ranking(articles, processed_query, method)
+            display_results(rankings, scores, articles, title_mapping)
+            return rankings, scores
