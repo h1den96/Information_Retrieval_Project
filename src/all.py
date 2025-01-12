@@ -144,30 +144,60 @@ def boolean_search(query_text, articles):
 # ---------------------------------------------------------
 # TF-IDF (dot product)
 # ---------------------------------------------------------
-def rank_tfidf(query_tokens, articles):
+def rank_tfidf(query_tokens, articles, inverted_index):
+    # Retrieve relevant documents using the inverted index
+    relevant_doc_ids = set()
+    for token in query_tokens:
+        relevant_doc_ids.update(inverted_index.get(token, []))
+
+    relevant_docs = [a for a in articles if a['id'] in relevant_doc_ids]
+
+    # Construct document-term matrix only for relevant documents
+    corpus = [" ".join(a['tokens']) for a in relevant_docs]
     vectorizer = TfidfVectorizer()
-    corpus = [" ".join(a['tokens']) for a in articles]
     tfidf_matrix = vectorizer.fit_transform(corpus)
+
+    # Transform the query
     query_vec = vectorizer.transform([" ".join(query_tokens)])
+
+    # Compute scores
     scores = (tfidf_matrix @ query_vec.T).toarray().flatten()
-    # Normalization σε 0-100
     scores *= 100
+
+    # Rank documents by score
     ranked_indices = np.argsort(-scores)
-    return ranked_indices, scores
+    ranked_docs = [relevant_docs[i]['id'] for i in ranked_indices]
+    ranked_scores = [scores[i] for i in ranked_indices]
+    return ranked_docs, ranked_scores
 
 # ---------------------------------------------------------
 # TF-IDF + Cosine Similarity
 # ---------------------------------------------------------
-def rank_vsm(query_tokens, articles):
+def rank_vsm(query_tokens, articles, inverted_index):
+    # Retrieve relevant documents using the inverted index
+    relevant_doc_ids = set()
+    for token in query_tokens:
+        relevant_doc_ids.update(inverted_index.get(token, []))
+
+    relevant_docs = [a for a in articles if a['id'] in relevant_doc_ids]
+
+    # Construct document-term matrix only for relevant documents
+    corpus = [" ".join(a['tokens']) for a in relevant_docs]
     vectorizer = TfidfVectorizer()
-    corpus = [" ".join(a['tokens']) for a in articles]
     tfidf_matrix = vectorizer.fit_transform(corpus)
+
+    # Transform the query
     query_vec = vectorizer.transform([" ".join(query_tokens)])
+
+    # Compute cosine similarity
     cos_sims = cosine_similarity(query_vec, tfidf_matrix).flatten()
-    # Normalization σε 0-100
     cos_sims *= 100
+
+    # Rank documents by similarity
     ranked_indices = np.argsort(-cos_sims)
-    return ranked_indices, cos_sims
+    ranked_docs = [relevant_docs[i]['id'] for i in ranked_indices]
+    ranked_scores = [cos_sims[i] for i in ranked_indices]
+    return ranked_docs, ranked_scores
 
 # ---------------------------------------------------------
 # BM25
@@ -175,78 +205,92 @@ def rank_vsm(query_tokens, articles):
 def calc_idf(articles):
     N = len(articles)
     term_doc_count = defaultdict(int)
-    for a in articles:
-        unique_tokens = set(a['tokens'])
-        for t in unique_tokens:
-            term_doc_count[t] += 1
+    for article in articles:
+        unique_tokens = set(article['tokens'])
+        for token in unique_tokens:
+            term_doc_count[token] += 1
     idf = {}
-    for t, doc_count in term_doc_count.items():
-        idf[t] = math.log((N - doc_count + 0.5)/(doc_count + 0.5) + 1)
+    for token, doc_count in term_doc_count.items():
+        idf[token] = math.log((N - doc_count + 0.5) / (doc_count + 0.5) + 1)
     return idf
 
-def BM25(query_tokens, articles, idf):
+def rank_bm25(query_tokens, articles, idf, inverted_index):
     k1 = 1.5
     b = 0.75
     N = len(articles)
-    avg_len = sum(len(a['tokens']) for a in articles)/N
+    avg_len = sum(len(a['tokens']) for a in articles) / N
+
+    # Retrieve relevant documents using the inverted index
+    relevant_doc_ids = set()
+    for token in query_tokens:
+        relevant_doc_ids.update(inverted_index.get(token, []))
+
+    relevant_docs = [a for a in articles if a['id'] in relevant_doc_ids]
+
     scores = []
-    for a in articles:
+    for a in relevant_docs:
         freq = defaultdict(int)
         for t in a['tokens']:
             freq[t] += 1
+
         score = 0
         for q in query_tokens:
             if q in idf:
                 tf = freq[q]
-                numerator = tf*(k1+1)
-                denominator = tf + k1*(1 - b + b*(len(a['tokens'])/avg_len))
-                score += idf[q]*(numerator/denominator)
+                numerator = tf * (k1 + 1)
+                denominator = tf + k1 * (1 - b + b * (len(a['tokens']) / avg_len))
+                score += idf[q] * (numerator / denominator)
+
         scores.append(score)
+
     scores = np.array(scores)
-    # Normalization σε 0-100
-    scores *= 100
+
+    # Rank documents by score
     ranked_indices = np.argsort(-scores)
-    return ranked_indices, scores
+    ranked_docs = [relevant_docs[i]['id'] for i in ranked_indices]
+    ranked_scores = [scores[i] for i in ranked_indices]
+    return ranked_docs, ranked_scores
 
 # ---------------------------------------------------------
 # Συνάρτηση Ranking
 # ---------------------------------------------------------
-def ranking(articles, query_text, method):
+def ranking(articles, query_text, method, inverted_index):
     processed_query = process_query(query_text)
     if method == '1':
         # Boolean
-        docs, _ = boolean_search(query_text, articles)
+        docs, _ = boolean_search(query_text, inverted_index)
         return docs, []
     elif method == '2':
         # TF-IDF
-        ranked_indices, sc = rank_tfidf(processed_query, articles)
-        doc_ids = [articles[i]['id'] for i in ranked_indices]
-        scores_ordered = [sc[i] for i in ranked_indices]
+        ranked_indices, sc = rank_tfidf(processed_query, articles, inverted_index)
+        doc_ids = [articles[i]['id'] for i in ranked_indices if i < len(articles)]
+        scores_ordered = [sc[i] for i in ranked_indices if i < len(sc)]
         return doc_ids, scores_ordered
     elif method == '3':
         # BM25
         idf_vals = calc_idf(articles)
-        ranked_indices, sc = BM25(processed_query, articles, idf_vals)
-        doc_ids = [articles[i]['id'] for i in ranked_indices]
-        scores_ordered = [sc[i] for i in ranked_indices]
-        return doc_ids, scores_ordered
+        ranked_docs, sc = rank_bm25(processed_query, articles, idf_vals, inverted_index)
+        return ranked_docs, sc
     elif method == '4':
         # TF-IDF + Cosine
-        ranked_indices, sc = rank_vsm(processed_query, articles)
-        doc_ids = [articles[i]['id'] for i in ranked_indices]
-        scores_ordered = [sc[i] for i in ranked_indices]
+        ranked_indices, sc = rank_vsm(processed_query, articles, inverted_index)
+        doc_ids = [articles[i]['id'] for i in ranked_indices if i < len(articles)]
+        scores_ordered = [sc[i] for i in ranked_indices if i < len(sc)]
         return doc_ids, scores_ordered
     else:
         print("Μη έγκυρη μέθοδος.")
         return [], []
 
+
 # ---------------------------------------------------------
 # main_loop (διαδραστικό ή one-shot)
 # ---------------------------------------------------------
 def main_loop(articles, title_mapping, query=None, use='0', method=None):
+    global _inverted_index  # Use the global variable
     if use == '1':
         # one-shot
-        doc_ids, scores = ranking(articles, query, method)
+        _inverted_index = buildInvertedIndex(articles)  # Pass articles, not query
+        doc_ids, scores = ranking(articles, query, method, _inverted_index)
         return doc_ids, scores
     else:
         while True:
@@ -258,7 +302,8 @@ def main_loop(articles, title_mapping, query=None, use='0', method=None):
                 user_query = input("Enter your query: ")
                 print("Methods:\n1) Boolean\n2) TF-IDF\n3) BM25\n4) TF-IDF+Cosine")
                 user_method = input("Select (1..4): ").strip()
-                docs, scores = ranking(articles, user_query, user_method)
+                _inverted_index = buildInvertedIndex(articles)  # Ensure the index is built
+                docs, scores = ranking(articles, user_query, user_method, _inverted_index)
                 top_k = min(10, len(docs))
                 for i in range(top_k):
                     did = docs[i]
@@ -340,8 +385,6 @@ def eval_search_engine(queries, ground_truth_dict, articles, title_mapping):
         retrieved_docs = set(doc_ids)
         relevant_docs = set(ground_truth_dict.get(qid, []))
 
-        print(f"Retrieved Docs: {len(retrieved_docs)}, Relevant Docs: {len(relevant_docs)}")
-
         tp = len(retrieved_docs & relevant_docs)
         fp = len(retrieved_docs - relevant_docs)
         fn = len(relevant_docs - retrieved_docs)
@@ -369,13 +412,11 @@ def eval_search_engine(queries, ground_truth_dict, articles, title_mapping):
 # MAIN
 # ---------------------------------------------------------
 if __name__ == "__main__":
-
     articles_file = None
     titles_file   = None
     queries_file  = None
     rel_file      = None
 
-    # Δίνουμε επιλογές στον χρήστη:
     print("\nΤι θέλετε να κάνετε;")
     print("1) CISI Evaluation (create/update CISI.REL & evaluate)")
     print("2) Interactive Search (search in CLI)")
@@ -407,11 +448,8 @@ if __name__ == "__main__":
             print("Missing dataset files. Exiting.")
             sys.exit(1)
         
-        # Δημιουργούμε/ενημερώνουμε CISI.REL
         ground_truth(articles, title_mapping, queries, method_for_gt)
-        # Φορτώνουμε το ground truth σε λεξικό
         ground_truth_dict = parse_relevance(rel_file)
-        # Τρέχουμε eval
         eval_search_engine(queries, ground_truth_dict, articles, title_mapping)
 
     elif user_choice == '2':
@@ -435,7 +473,6 @@ if __name__ == "__main__":
             sys.exit(1)
 
         main_loop(articles, title_mapping, use='0')
-
     
     else:
         print("Μη έγκυρη επιλογή. Τερματισμός.")
