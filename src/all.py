@@ -1,5 +1,3 @@
-# cisi_experiment.py
-
 import nltk
 import re
 import json
@@ -342,6 +340,8 @@ def eval_search_engine(queries, ground_truth_dict, articles, title_mapping):
         retrieved_docs = set(doc_ids)
         relevant_docs = set(ground_truth_dict.get(qid, []))
 
+        print(f"Retrieved Docs: {len(retrieved_docs)}, Relevant Docs: {len(relevant_docs)}")
+
         tp = len(retrieved_docs & relevant_docs)
         fp = len(retrieved_docs - relevant_docs)
         fn = len(relevant_docs - retrieved_docs)
@@ -369,19 +369,11 @@ def eval_search_engine(queries, ground_truth_dict, articles, title_mapping):
 # MAIN
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    articles_file = './processed_CISI_articles.json'
-    titles_file   = './CISI_articles.json'
-    queries_file  = './CISI.QRY'
-    rel_file      = './CISI.REL'
 
-    # Φορτώνουμε dataset
-    articles = load_articles(articles_file)
-    title_mapping = load_titles(titles_file)
-    queries = load_queries(queries_file)
-
-    if not (articles and title_mapping and queries):
-        print("Missing dataset files. Exiting.")
-        sys.exit(1)
+    articles_file = None
+    titles_file   = None
+    queries_file  = None
+    rel_file      = None
 
     # Δίνουμε επιλογές στον χρήστη:
     print("\nΤι θέλετε να κάνετε;")
@@ -401,6 +393,20 @@ if __name__ == "__main__":
             print("Μη έγκυρη, χρήση default BM25 (3).")
             method_for_gt='3'
         
+        articles_file = './processed_CISI_articles.json'
+        titles_file   = './CISI_articles.json'
+        queries_file  = './CISI.QRY'
+        rel_file      = './CISI.REL'
+
+        # Φορτώνουμε dataset
+        articles = load_articles(articles_file)
+        title_mapping = load_titles(titles_file)
+        queries = load_queries(queries_file)
+
+        if not (articles and title_mapping and queries):
+            print("Missing dataset files. Exiting.")
+            sys.exit(1)
+        
         # Δημιουργούμε/ενημερώνουμε CISI.REL
         ground_truth(articles, title_mapping, queries, method_for_gt)
         # Φορτώνουμε το ground truth σε λεξικό
@@ -410,7 +416,26 @@ if __name__ == "__main__":
 
     elif user_choice == '2':
         # Διαδραστική αναζήτηση
+        articles_choice = input("Ποιά δεδομένα εισόδου να χρησιμοποιηθούν: 1.Wikipedia 2.CISI (1/2): ").strip()
+        if articles_choice == '1':
+            articles_file = './processed_articles.json'
+            titles_file   = './wikipedia_articles.json'
+        elif articles_choice == '2':
+            articles_file = './processed_CISI_articles.json'
+            titles_file   = './CISI_articles.json'
+        else:
+            print("Μη έγκυρη επιλογή.")
+            sys.exit(1)
+        
+        articles = load_articles(articles_file)
+        title_mapping = load_titles(titles_file)
+
+        if not articles or not title_mapping:
+            print("Missing dataset files. Exiting.")
+            sys.exit(1)
+
         main_loop(articles, title_mapping, use='0')
+
     
     else:
         print("Μη έγκυρη επιλογή. Τερματισμός.")
