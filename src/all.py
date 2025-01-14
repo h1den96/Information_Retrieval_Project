@@ -215,8 +215,8 @@ def calc_idf(articles):
     return idf
 
 def rank_bm25(query_tokens, articles, idf, inverted_index):
-    k1 = 1.5
-    b = 0.75
+    k1 = 2
+    b = 0.5
     N = len(articles)
     avg_len = sum(len(a['tokens']) for a in articles) / N
 

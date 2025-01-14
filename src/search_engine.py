@@ -167,7 +167,7 @@ def rank_tfidf(query_tokens, articles):
     scores = np.dot(tfidf_matrix, query_vector.T).toarray().flatten()
 
     ranked_indices = np.argsort(-scores)
-    return ranked_indices, scores
+    return ranked_indices, 100*scores
 
 # -----------------------------------------------------
 # Vector Space Model (TF-IDF + Cosine Similarity, sklearn)
@@ -188,7 +188,7 @@ def rank_vsm(query_tokens, articles):
     cos_sims = cosine_similarity(query_vector, tfidf_matrix).flatten()
 
     ranked_indices = np.argsort(-cos_sims)
-    return ranked_indices, cos_sims
+    return ranked_indices, 100*cos_sims
 
 # -----------------------------------------------------
 # BM25 (χειροποίητη υλοποίηση)
@@ -212,7 +212,7 @@ def calc_idf(articles):
         idf[term] = math.log((N - doc_count + 0.5) / (doc_count + 0.5) + 1)
     return idf
 
-def BM25(query_tokens, articles, idf, k1=1.5, b=0.75):
+def BM25(query_tokens, articles, idf, k1=2.0, b=0.5):
     N = len(articles)
     avg_doc_len = sum(len(a['tokens']) for a in articles) / N
 
